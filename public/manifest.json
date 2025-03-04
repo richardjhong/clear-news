@@ -3,6 +3,7 @@
   "name": "Clear News",
   "version": "1.0.0",
   "description": "AI-powered fact-checking Chrome extension for news articles",
+  "author": "Richard Hong",
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["*://*/*"],
   "action": {
