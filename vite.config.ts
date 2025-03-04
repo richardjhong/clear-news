@@ -5,9 +5,10 @@ import { resolve } from "path";
 export default defineConfig({
   plugins: [react()],
   build: {
+    outDir: "dist",
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, "popup.html"),
+        main: "index.html",
         content: resolve(__dirname, "src/content.ts"),
         background: resolve(__dirname, "src/background.ts"),
       },
