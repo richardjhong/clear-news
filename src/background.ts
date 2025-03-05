@@ -19,18 +19,18 @@ chrome.runtime.onMessage.addListener(
   ) => {
     if (!message.type) {
       sendResponse({ result: 'Background script received message.' });
-      return false;
+      return;
     }
 
     switch (message.type) {
       case 'ANALYZE_WITH_PERPLEXITY':
         console.log('using analyze with perplexity');
         handlePerplexityRequest(message.content, sendResponse);
-        return true;
+        return;
 
       default:
         sendResponse({ result: 'Unknown message type.' });
-        return false;
+        return;
     }
   }
 );
