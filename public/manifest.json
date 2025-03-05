@@ -4,18 +4,14 @@
   "version": "1.0.0",
   "description": "AI-powered fact-checking Chrome extension for news articles",
   "author": "Richard Hong",
-  "permissions": ["activeTab", "storage", "scripting"],
-  "host_permissions": ["*://*/*"],
+  "permissions": ["activeTab"],
   "action": {
     "default_popup": "index.html"
   },
   "content_scripts": [
     {
-      "matches": ["*://*/*"],
+      "matches": ["<all_urls>"],
       "js": ["content.js"]
     }
-  ],
-  "background": {
-    "service_worker": "background.js"
-  }
+  ]
 }
