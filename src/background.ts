@@ -1,7 +1,5 @@
 import type { MessageType } from './types';
 
-const API_KEY = import.meta.env.VITE_PERPLEXITY_API_KEY;
-
 type PerplexityResponse = {
   result: string;
   error?: string;
@@ -24,19 +22,8 @@ chrome.runtime.onMessage.addListener(
 
     switch (message.type) {
       case 'ANALYZE_WITH_PERPLEXITY':
-        handlePerplexityRequest(message.content)
-          .then((content) => {
-            console.log('Sending to Chat:', { result: content });
-            sendResponse({ result: content });
-          })
-          .catch((error) => {
-            console.error('Error:', error);
-            sendResponse({
-              result: 'Error occurred',
-              error: error.message,
-            });
-          });
-        return true;
+        handleServerRequest(message.content, sendResponse);
+        return;
 
       default:
         sendResponse({ result: 'Unknown message type.' });
@@ -45,25 +32,26 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-const handlePerplexityRequest = async (input: string): Promise<string> => {
-  const options = {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'sonar',
-      messages: [{ role: 'user', content: input }],
-    }),
-  };
+const handleServerRequest = async (
+  content: string,
+  sendResponse: (response: PerplexityResponse) => void
+) => {
+  try {
+    const response = await fetch('http://localhost:3000/api/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ input: content }),
+    });
 
-  const response = await fetch(
-    'https://api.perplexity.ai/chat/completions',
-    options
-  );
-
-  const data = await response.json();
-  console.log('data', data);
-  return data.choices[0].message.content;
+    const data = await response.json();
+    sendResponse({ result: data.result });
+  } catch (error) {
+    console.error('Server request error:', error);
+    sendResponse({
+      result: 'An error occurred',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 };
