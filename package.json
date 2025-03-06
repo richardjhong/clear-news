@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.0.9",
+    "@types/node": "^22.13.9",
     "dot-env": "^0.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -21,7 +22,6 @@
   "devDependencies": {
     "@eslint/js": "^9.21.0",
     "@types/chrome": "^0.0.308",
-    "@types/node": "^22.13.9",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
