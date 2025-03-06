@@ -24,9 +24,19 @@ chrome.runtime.onMessage.addListener(
 
     switch (message.type) {
       case 'ANALYZE_WITH_PERPLEXITY':
-        console.log('using analyze with perplexity');
-        handlePerplexityRequest(message.content, sendResponse);
-        return;
+        handlePerplexityRequest(message.content)
+          .then((content) => {
+            console.log('Sending to Chat:', { result: content });
+            sendResponse({ result: content });
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+            sendResponse({
+              result: 'Error occurred',
+              error: error.message,
+            });
+          });
+        return true;
 
       default:
         sendResponse({ result: 'Unknown message type.' });
@@ -35,10 +45,7 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-const handlePerplexityRequest = async (
-  input: string,
-  sendResponse: (response: PerplexityResponse) => void
-) => {
+const handlePerplexityRequest = async (input: string): Promise<string> => {
   const options = {
     method: 'POST',
     headers: {
@@ -51,19 +58,12 @@ const handlePerplexityRequest = async (
     }),
   };
 
-  try {
-    const response = await fetch(
-      'https://api.perplexity.ai/chat/completions',
-      options
-    );
+  const response = await fetch(
+    'https://api.perplexity.ai/chat/completions',
+    options
+  );
 
-    const data = await response.json();
-    sendResponse({ result: data.choices[0].message.content });
-  } catch (error) {
-    console.error('Perfplexity API error:', error);
-    sendResponse({
-      result: 'An error occurred',
-      error: 'An error occurred while processing the request.',
-    });
-  }
+  const data = await response.json();
+  console.log('data', data);
+  return data.choices[0].message.content;
 };

@@ -4,21 +4,22 @@ type Message = {
   id: number;
   role: 'user' | 'assistant';
   content: string;
+  timestamp: Date;
 };
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState<string>('');
   const [showChoiceButtons, setShowChoiceButtons] = useState(true);
+  const [currentUrl, setCurrentUrl] = useState<string>('');
 
   useEffect(() => {
     if (chrome?.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const url = tabs[0].url;
-        setCurrentUrl(url || '');
 
+        // Check if it's a chrome:// URL or empty tab
         if (!url || url.startsWith('chrome://')) {
           setMessages([
             {
@@ -26,6 +27,7 @@ export default function Chat() {
               role: 'assistant',
               content:
                 "Please open this extension on a webpage you'd like me to analyze.",
+              timestamp: new Date(),
             },
           ]);
           setShowChoiceButtons(false);
@@ -33,26 +35,17 @@ export default function Chat() {
           return;
         }
 
+        setCurrentUrl(url);
         setMessages([
           {
             id: Date.now(),
             role: 'assistant',
-            content: `Would you like me to summarize the link for you?`,
+            content: `I notice you're on this page: ${url}\nWould you like me to summarize it for you?`,
+            timestamp: new Date(),
           },
         ]);
       });
     }
-  }, []);
-
-  useEffect(() => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTab = tabs[0];
-      console.log('Active Tab:', {
-        url: activeTab.url,
-        title: activeTab.title,
-        id: activeTab.id,
-      });
-    });
   }, []);
 
   const handleSummaryChoice = (choice: boolean) => {
@@ -61,7 +54,8 @@ export default function Chat() {
     const userMessage: Message = {
       id: Date.now(),
       role: 'user',
-      content: choice ? 'Yes' : 'No',
+      content: choice ? 'Yes, please summarize it' : 'No, thanks',
+      timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMessage]);
 
@@ -73,20 +67,19 @@ export default function Chat() {
           content: `Summarize the following link article: ${currentUrl}`,
         },
         (response) => {
+          console.log('Chat received response:', response);
           setIsLoading(false);
-          if (response?.error) {
-            console.error(response.error);
-            return;
+          if (response && response.result) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now(),
+                role: 'assistant',
+                content: response.result,
+                timestamp: new Date(),
+              },
+            ]);
           }
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now(),
-              role: 'assistant',
-              content: response.result,
-            },
-          ]);
         }
       );
     }
@@ -100,6 +93,7 @@ export default function Chat() {
       id: Date.now(),
       role: 'user',
       content: inputText.trim(),
+      timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -113,19 +107,17 @@ export default function Chat() {
       },
       (response) => {
         setIsLoading(false);
-        if (response?.error) {
-          console.error(response.error);
-          return;
+        if (response?.result) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now(),
+              role: 'assistant',
+              content: response.result,
+              timestamp: new Date(),
+            },
+          ]);
         }
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            role: 'assistant',
-            content: response.result,
-          },
-        ]);
       }
     );
   };
@@ -138,8 +130,17 @@ export default function Chat() {
             <div
               className={`flex ${
                 message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
+              } items-center gap-2`}
             >
+              {message.role === 'assistant' && (
+                <span className="text-xs text-gray-400">
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              )}
+
               <div
                 className={`
                 max-w-[80%] rounded-lg p-3
@@ -152,7 +153,17 @@ export default function Chat() {
               >
                 {message.content}
               </div>
+
+              {message.role === 'user' && (
+                <span className="text-xs text-gray-400">
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              )}
             </div>
+
             {message.role === 'assistant' &&
               message.id === messages[0].id &&
               showChoiceButtons && (
