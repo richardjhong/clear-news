@@ -19,6 +19,20 @@ export default function Chat() {
         const url = tabs[0].url;
         setCurrentUrl(url || '');
 
+        if (!url || url.startsWith('chrome://')) {
+          setMessages([
+            {
+              id: Date.now(),
+              role: 'assistant',
+              content:
+                "Please open this extension on a webpage you'd like me to analyze.",
+            },
+          ]);
+          setShowChoiceButtons(false);
+          setIsLoading(false);
+          return;
+        }
+
         setMessages([
           {
             id: Date.now(),
