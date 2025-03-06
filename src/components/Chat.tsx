@@ -7,6 +7,16 @@ type Message = {
   timestamp: Date;
 };
 
+type StoredChat = {
+  messages: Array<{
+    id: number;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+  }>;
+  showChoiceButtons: boolean;
+};
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -18,35 +28,65 @@ export default function Chat() {
     if (chrome?.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const url = tabs[0].url;
-
-        // Check if it's a chrome:// URL or empty tab
-        if (!url || url.startsWith('chrome://')) {
-          setMessages([
-            {
-              id: Date.now(),
-              role: 'assistant',
-              content:
-                "Please open this extension on a webpage you'd like me to analyze.",
-              timestamp: new Date(),
-            },
-          ]);
-          setShowChoiceButtons(false);
-          setIsLoading(false);
-          return;
-        }
+        if (!url) return;
 
         setCurrentUrl(url);
-        setMessages([
-          {
-            id: Date.now(),
-            role: 'assistant',
-            content: `I notice you're on this page: ${url}\nWould you like me to summarize it for you?`,
-            timestamp: new Date(),
-          },
-        ]);
+
+        chrome.storage.local.get(
+          [url],
+          (result: { [key: string]: StoredChat }) => {
+            if (result[url]) {
+              const savedMessages = result[url].messages.map((msg) => ({
+                ...msg,
+                timestamp: new Date(msg.timestamp),
+              }));
+
+              setMessages(savedMessages);
+              setShowChoiceButtons(result[url].showChoiceButtons);
+            } else {
+              if (url.startsWith('chrome://')) {
+                setMessages([
+                  {
+                    id: Date.now(),
+                    role: 'assistant',
+                    content:
+                      "Please open this extension on a webpage you'd like me to analyze.",
+                    timestamp: new Date(),
+                  },
+                ]);
+                setShowChoiceButtons(false);
+              } else {
+                setMessages([
+                  {
+                    id: Date.now(),
+                    role: 'assistant',
+                    content: `I notice you're on this page: ${url}\nWould you like me to summarize it for you?`,
+                    timestamp: new Date(),
+                  },
+                ]);
+              }
+            }
+          }
+        );
       });
     }
   }, []);
+
+  useEffect(() => {
+    if (currentUrl) {
+      const storedMessages = messages.map((msg) => ({
+        ...msg,
+        timestamp: msg.timestamp.toISOString(),
+      }));
+
+      chrome.storage.local.set({
+        [currentUrl]: {
+          messages: storedMessages,
+          showChoiceButtons,
+        },
+      });
+    }
+  }, [messages, showChoiceButtons, currentUrl]);
 
   const handleSummaryChoice = (choice: boolean) => {
     setShowChoiceButtons(false);
@@ -61,14 +101,15 @@ export default function Chat() {
 
     if (choice) {
       setIsLoading(true);
+
       chrome.runtime.sendMessage(
         {
           type: 'ANALYZE_WITH_PERPLEXITY',
           content: `Summarize the following link article: ${currentUrl}`,
         },
         (response) => {
-          console.log('Chat received response:', response);
           setIsLoading(false);
+
           if (response && response.result) {
             setMessages((prev) => [
               ...prev,
@@ -76,6 +117,17 @@ export default function Chat() {
                 id: Date.now(),
                 role: 'assistant',
                 content: response.result,
+                timestamp: new Date(),
+              },
+            ]);
+          } else {
+            console.error('Invalid response:', response);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now(),
+                role: 'assistant',
+                content: 'Sorry, I encountered an error.',
                 timestamp: new Date(),
               },
             ]);
@@ -173,7 +225,7 @@ export default function Chat() {
                     className="bg-blue-500 text-white px-6 py-2 rounded-lg
                            hover:bg-blue-600 transition-colors text-sm"
                   >
-                    Yes, please
+                    Yes, please summarize it
                   </button>
                   <button
                     onClick={() => handleSummaryChoice(false)}

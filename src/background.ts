@@ -22,8 +22,18 @@ chrome.runtime.onMessage.addListener(
 
     switch (message.type) {
       case 'ANALYZE_WITH_PERPLEXITY':
-        handleServerRequest(message.content, sendResponse);
-        return;
+        handleServerRequest(message.content)
+          .then((result) => {
+            sendResponse({ result });
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+            sendResponse({
+              result: 'An error occurred',
+              error: error.message,
+            });
+          });
+        return true;
 
       default:
         sendResponse({ result: 'Unknown message type.' });
@@ -32,26 +42,19 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-const handleServerRequest = async (
-  content: string,
-  sendResponse: (response: PerplexityResponse) => void
-) => {
-  try {
-    const response = await fetch('http://localhost:3000/api/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ input: content }),
-    });
+const handleServerRequest = async (content: string) => {
+  const response = await fetch('http://localhost:3000/api/analyze', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ input: content }),
+  });
 
-    const data = await response.json();
-    sendResponse({ result: data.result });
-  } catch (error) {
-    console.error('Server request error:', error);
-    sendResponse({
-      result: 'An error occurred',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+  if (!response.ok) {
+    throw new Error(`Server responded with ${response.status}`);
   }
+
+  const data = await response.json();
+  return data.result;
 };
