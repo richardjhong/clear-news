@@ -88,54 +88,54 @@ export default function Chat() {
     }
   }, [messages, showChoiceButtons, currentUrl]);
 
-  const handleSummaryChoice = (choice: boolean) => {
-    setShowChoiceButtons(false);
+  // const handleSummaryChoice = (choice: boolean) => {
+  //   setShowChoiceButtons(false);
 
-    const userMessage: Message = {
-      id: Date.now(),
-      role: 'user',
-      content: choice ? 'Yes, please summarize it' : 'No, thanks',
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
+  //   const userMessage: Message = {
+  //     id: Date.now(),
+  //     role: 'user',
+  //     content: choice ? 'Yes, please summarize it' : 'No, thanks',
+  //     timestamp: new Date(),
+  //   };
+  //   setMessages((prev) => [...prev, userMessage]);
 
-    if (choice) {
-      setIsLoading(true);
+  //   if (choice) {
+  //     setIsLoading(true);
 
-      chrome.runtime.sendMessage(
-        {
-          type: 'ANALYZE_WITH_PERPLEXITY',
-          content: `Summarize the following link article: ${currentUrl}`,
-        },
-        (response) => {
-          setIsLoading(false);
+  //     chrome.runtime.sendMessage(
+  //       {
+  //         type: 'ANALYZE_WITH_PERPLEXITY',
+  //         content: `Summarize the following link article: ${currentUrl}`,
+  //       },
+  //       (response) => {
+  //         setIsLoading(false);
 
-          if (response && response.result) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: Date.now(),
-                role: 'assistant',
-                content: response.result,
-                timestamp: new Date(),
-              },
-            ]);
-          } else {
-            console.error('Invalid response:', response);
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: Date.now(),
-                role: 'assistant',
-                content: 'Sorry, I encountered an error.',
-                timestamp: new Date(),
-              },
-            ]);
-          }
-        }
-      );
-    }
-  };
+  //         if (response && response.result) {
+  //           setMessages((prev) => [
+  //             ...prev,
+  //             {
+  //               id: Date.now(),
+  //               role: 'assistant',
+  //               content: response.result,
+  //               timestamp: new Date(),
+  //             },
+  //           ]);
+  //         } else {
+  //           console.error('Invalid response:', response);
+  //           setMessages((prev) => [
+  //             ...prev,
+  //             {
+  //               id: Date.now(),
+  //               role: 'assistant',
+  //               content: 'Sorry, I encountered an error.',
+  //               timestamp: new Date(),
+  //             },
+  //           ]);
+  //         }
+  //       }
+  //     );
+  //   }
+  // };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,6 +174,43 @@ export default function Chat() {
     );
   };
 
+  const handleAnalysisChoice = (type: 'summarize' | 'findSimilar') => {
+    setShowChoiceButtons(false);
+
+    const userMessage: Message = {
+      id: Date.now(),
+      role: 'user',
+      content:
+        type === 'summarize'
+          ? 'Please summarize this article'
+          : 'Please find similar articles',
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    setIsLoading(true);
+    chrome.runtime.sendMessage(
+      {
+        type: 'ANALYZE_WITH_PERPLEXITY',
+        content: currentUrl,
+        analysisType: type,
+      },
+      (response) => {
+        setIsLoading(false);
+        if (response?.result) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now(),
+              role: 'assistant',
+              content: response.result,
+              timestamp: new Date(),
+            },
+          ]);
+        }
+      }
+    );
+  };
   return (
     <div className="flex flex-col h-[600px] w-[400px] bg-gray-50">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -219,21 +256,26 @@ export default function Chat() {
             {message.role === 'assistant' &&
               message.id === messages[0].id &&
               showChoiceButtons && (
-                <div className="flex gap-2 justify-center mt-4">
-                  <button
-                    onClick={() => handleSummaryChoice(true)}
-                    className="bg-blue-500 text-white px-6 py-2 rounded-lg
-                           hover:bg-blue-600 transition-colors text-sm"
-                  >
-                    Yes, please summarize it
-                  </button>
-                  <button
-                    onClick={() => handleSummaryChoice(false)}
-                    className="bg-gray-500 text-white px-6 py-2 rounded-lg
-                           hover:bg-gray-600 transition-colors text-sm"
-                  >
-                    No, thanks
-                  </button>
+                <div className="flex flex-col gap-4 mt-4">
+                  <div className="text-center text-sm text-gray-600">
+                    What would you like to know about this article?
+                  </div>
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={() => handleAnalysisChoice('summarize')}
+                      className="bg-blue-500 text-white px-6 py-2 rounded-lg
+                       hover:bg-blue-600 transition-colors text-sm"
+                    >
+                      Summarize
+                    </button>
+                    <button
+                      onClick={() => handleAnalysisChoice('findSimilar')}
+                      className="bg-green-500 text-white px-6 py-2 rounded-lg
+                       hover:bg-green-600 transition-colors text-sm"
+                    >
+                      Find Similar
+                    </button>
+                  </div>
                 </div>
               )}
           </div>
