@@ -1,27 +1,8 @@
 import { useState, useEffect } from 'react';
-import Markdown from 'react-markdown';
-
-type Message = {
-  id: number;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-};
-
-type StoredChat = {
-  messages: Array<{
-    id: number;
-    role: 'user' | 'assistant';
-    content: string;
-    timestamp: string;
-  }>;
-  showChoiceButtons: boolean;
-};
-
-type CurrentTab = {
-  title: string;
-  url: string;
-};
+import { Message, StoredChat, CurrentTab } from '../types';
+import { handleAnalysisRequest } from '../utils/chatOperations';
+import MessageDisplay from './MessageDisplay';
+import ChatInput from './ChatInput';
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -36,12 +17,15 @@ export default function Chat() {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const tab = tabs[0];
         const url = tab.url;
+        const title = tab.title as string;
         if (!url) return;
 
-        setCurrentTab({
-          title: tab.title || 'Untitled',
-          url: url,
-        });
+        const currentTabInfo = {
+          title,
+          url,
+        };
+
+        setCurrentTab(currentTabInfo);
 
         chrome.storage.local.get(
           [url],
@@ -53,7 +37,6 @@ export default function Chat() {
                   timestamp: new Date(msg.timestamp),
                 }))
               );
-
               setMessages([
                 {
                   id: Date.now(),
@@ -65,7 +48,7 @@ export default function Chat() {
               ]);
               setShowChoiceButtons(true);
             } else {
-              initializeNewChat(url);
+              initializeNewChat(url, currentTabInfo.title);
             }
           }
         );
@@ -73,7 +56,23 @@ export default function Chat() {
     }
   }, []);
 
-  const initializeNewChat = (url: string) => {
+  useEffect(() => {
+    if (currentTab?.url && messages.length > 0) {
+      const storedMessages = messages.map((msg) => ({
+        ...msg,
+        timestamp: msg.timestamp.toISOString(),
+      }));
+
+      chrome.storage.local.set({
+        [currentTab!.url]: {
+          messages: storedMessages,
+          showChoiceButtons,
+        },
+      });
+    }
+  }, [messages, showChoiceButtons, currentTab]);
+
+  const initializeNewChat = (url: string, title: string) => {
     if (!url || url.startsWith('chrome://')) {
       setMessages([
         {
@@ -90,7 +89,7 @@ export default function Chat() {
         {
           id: Date.now(),
           role: 'assistant',
-          content: `I notice you're on: ${currentTab?.title}\nWould you like me to analyze this page?`,
+          content: `I notice you're on: ${title}\nWould you like me to analyze this page?`,
           timestamp: new Date(),
         },
       ]);
@@ -106,65 +105,9 @@ export default function Chat() {
       setShowChoiceButtons(false);
     } else {
       chrome.storage.local.remove(currentTab.url, () => {
-        initializeNewChat(currentTab.url);
+        initializeNewChat(currentTab.url, currentTab.title);
       });
     }
-  };
-
-  useEffect(() => {
-    if (currentTab?.url) {
-      const storedMessages = messages.map((msg) => ({
-        ...msg,
-        timestamp: msg.timestamp.toISOString(),
-      }));
-
-      chrome.storage.local.set({
-        [currentTab.url]: {
-          messages: storedMessages,
-          showChoiceButtons,
-        },
-      });
-    }
-  }, [messages, showChoiceButtons, currentTab]);
-
-  const handleAnalysisChoice = (type: 'summarize' | 'findSimilar') => {
-    if (!currentTab?.url) return;
-
-    setShowChoiceButtons(false);
-
-    const userMessage: Message = {
-      id: Date.now(),
-      role: 'user',
-      content:
-        type === 'summarize'
-          ? 'Please summarize this article'
-          : 'Please find similar articles',
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-
-    setIsLoading(true);
-    chrome.runtime.sendMessage(
-      {
-        type: 'ANALYZE_WITH_PERPLEXITY',
-        content: currentTab.url,
-        analysisType: type,
-      },
-      (response) => {
-        setIsLoading(false);
-        if (response?.result) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now(),
-              role: 'assistant',
-              content: response.result,
-              timestamp: new Date(),
-            },
-          ]);
-        }
-      }
-    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -186,6 +129,7 @@ export default function Chat() {
       {
         type: 'ANALYZE_WITH_PERPLEXITY',
         content: userMessage.content,
+        analysisType: 'summarize',
       },
       (response) => {
         setIsLoading(false);
@@ -204,125 +148,29 @@ export default function Chat() {
     );
   };
 
+  const handleAnalysisChoice = (type: 'summarize' | 'findSimilar') => {
+    if (!currentTab?.url) return;
+    handleAnalysisRequest(
+      type,
+      currentTab.url,
+      setMessages,
+      setIsLoading,
+      setShowChoiceButtons
+    );
+  };
+
   return (
     <div className="flex flex-col h-[600px] w-[400px] bg-gray-50">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div key={message.id}>
-            <div
-              className={`flex ${
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              } items-center gap-2`}
-            >
-              {message.role === 'assistant' && (
-                <span className="text-xs text-gray-400">
-                  {message.timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              )}
-
-              <div
-                className={`
-                max-w-[80%] rounded-lg p-3
-                ${
-                  message.role === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white shadow-sm border'
-                }
-                ${
-                  message.role === 'assistant'
-                    ? 'prose prose-sm max-w-none'
-                    : ''
-                }
-              `}
-              >
-                {message.role === 'assistant' ? (
-                  <Markdown
-                    components={{
-                      h2: ({ children }) => (
-                        <h2 className="text-lg font-bold mt-4 mb-2 text-gray-800">
-                          {children}
-                        </h2>
-                      ),
-                      ul: ({ children }) => (
-                        <ul className="list-disc pl-4 space-y-1 mt-2">
-                          {children}
-                        </ul>
-                      ),
-                      li: ({ children }) => (
-                        <li className="text-gray-700">{children}</li>
-                      ),
-                      p: ({ children }) => (
-                        <p className="mb-2 text-gray-700">{children}</p>
-                      ),
-                      strong: ({ children }) => (
-                        <strong className="font-semibold text-gray-900">
-                          {children}
-                        </strong>
-                      ),
-                    }}
-                  >
-                    {message.content}
-                  </Markdown>
-                ) : (
-                  message.content
-                )}
-              </div>
-
-              {message.role === 'user' && (
-                <span className="text-xs text-gray-400">
-                  {message.timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              )}
-            </div>
-
-            {message.role === 'assistant' &&
-              message.id === messages[0].id &&
-              showChoiceButtons && (
-                <div className="flex gap-2 justify-center mt-4">
-                  {message.content.includes('previous chat history') ? (
-                    <>
-                      <button
-                        onClick={() => handleHistoryChoice(true)}
-                        className="bg-blue-500 text-white px-6 py-2 rounded-lg
-                                 hover:bg-blue-600 transition-colors text-sm"
-                      >
-                        Continue Previous
-                      </button>
-                      <button
-                        onClick={() => handleHistoryChoice(false)}
-                        className="bg-gray-500 text-white px-6 py-2 rounded-lg
-                                 hover:bg-gray-600 transition-colors text-sm"
-                      >
-                        Start Fresh
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleAnalysisChoice('summarize')}
-                        className="bg-blue-500 text-white px-6 py-2 rounded-lg
-                                 hover:bg-blue-600 transition-colors text-sm"
-                      >
-                        Summarize
-                      </button>
-                      <button
-                        onClick={() => handleAnalysisChoice('findSimilar')}
-                        className="bg-green-500 text-white px-6 py-2 rounded-lg
-                                 hover:bg-green-600 transition-colors text-sm"
-                      >
-                        Find Similar
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-          </div>
+        {messages.map((message, index) => (
+          <MessageDisplay
+            key={message.id}
+            message={message}
+            isFirst={index === 0}
+            showChoiceButtons={showChoiceButtons}
+            onHistoryChoice={handleHistoryChoice}
+            onAnalysisChoice={handleAnalysisChoice}
+          />
         ))}
         {isLoading && (
           <div className="flex justify-start">
@@ -334,28 +182,12 @@ export default function Chat() {
       </div>
 
       {!showChoiceButtons && (
-        <form onSubmit={handleSubmit} className="p-4 bg-white border-t">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              className="flex-1 rounded-lg border border-gray-300 p-2 
-                       focus:outline-none focus:border-blue-500"
-              placeholder="Type your message..."
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="bg-blue-500 text-white px-4 py-2 rounded-lg
-                       hover:bg-blue-600 transition-colors
-                       disabled:bg-blue-300"
-            >
-              Send
-            </button>
-          </div>
-        </form>
+        <ChatInput
+          inputText={inputText}
+          setInputText={setInputText}
+          isLoading={isLoading}
+          onSubmit={handleSubmit}
+        />
       )}
     </div>
   );
