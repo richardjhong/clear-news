@@ -18,34 +18,51 @@ type StoredChat = {
   showChoiceButtons: boolean;
 };
 
+type CurrentTab = {
+  title: string;
+  url: string;
+};
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [previousMessages, setPreviousMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showChoiceButtons, setShowChoiceButtons] = useState(true);
-  const [currentUrl, setCurrentUrl] = useState<string>('');
+  const [currentTab, setCurrentTab] = useState<CurrentTab | null>(null);
 
   useEffect(() => {
     if (chrome?.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const url = tabs[0].url;
+        const tab = tabs[0];
+        const url = tab.url;
         if (!url) return;
 
-        setCurrentUrl(url);
+        setCurrentTab({
+          title: tab.title || 'Untitled',
+          url: url,
+        });
 
         chrome.storage.local.get(
           [url],
           (result: { [key: string]: StoredChat }) => {
             if (result[url]?.messages?.length > 0) {
-              const continueMessage = {
-                id: Date.now(),
-                role: 'assistant',
-                content:
-                  'I found a previous chat history for this page. Would you like to continue that conversation or start fresh?',
-                timestamp: new Date(),
-              } as Message;
+              setPreviousMessages(
+                result[url].messages.map((msg) => ({
+                  ...msg,
+                  timestamp: new Date(msg.timestamp),
+                }))
+              );
 
-              setMessages([{ ...continueMessage }]);
+              setMessages([
+                {
+                  id: Date.now(),
+                  role: 'assistant',
+                  content:
+                    'I found a previous chat history for this page. Would you like to continue that conversation or start fresh?',
+                  timestamp: new Date(),
+                },
+              ]);
               setShowChoiceButtons(true);
             } else {
               initializeNewChat(url);
@@ -73,7 +90,7 @@ export default function Chat() {
         {
           id: Date.now(),
           role: 'assistant',
-          content: `I notice you're on this page: ${url}\nWould you like me to summarize it for you?`,
+          content: `I notice you're on: ${currentTab?.title}\nWould you like me to analyze this page?`,
           timestamp: new Date(),
         },
       ]);
@@ -82,40 +99,73 @@ export default function Chat() {
   };
 
   const handleHistoryChoice = (continuePrevious: boolean) => {
+    if (!currentTab?.url) return;
+
     if (continuePrevious) {
-      chrome.storage.local.get(
-        [currentUrl],
-        (result: { [key: string]: StoredChat }) => {
-          const savedMessages = result[currentUrl].messages.map((msg) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp),
-          }));
-          setMessages(savedMessages);
-          setShowChoiceButtons(false);
-        }
-      );
+      setMessages(previousMessages);
+      setShowChoiceButtons(false);
     } else {
-      chrome.storage.local.remove(currentUrl, () => {
-        initializeNewChat(currentUrl);
+      chrome.storage.local.remove(currentTab.url, () => {
+        initializeNewChat(currentTab.url);
       });
     }
   };
 
   useEffect(() => {
-    if (currentUrl) {
+    if (currentTab?.url) {
       const storedMessages = messages.map((msg) => ({
         ...msg,
         timestamp: msg.timestamp.toISOString(),
       }));
 
       chrome.storage.local.set({
-        [currentUrl]: {
+        [currentTab.url]: {
           messages: storedMessages,
           showChoiceButtons,
         },
       });
     }
-  }, [messages, showChoiceButtons, currentUrl]);
+  }, [messages, showChoiceButtons, currentTab]);
+
+  const handleAnalysisChoice = (type: 'summarize' | 'findSimilar') => {
+    if (!currentTab?.url) return;
+
+    setShowChoiceButtons(false);
+
+    const userMessage: Message = {
+      id: Date.now(),
+      role: 'user',
+      content:
+        type === 'summarize'
+          ? 'Please summarize this article'
+          : 'Please find similar articles',
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    setIsLoading(true);
+    chrome.runtime.sendMessage(
+      {
+        type: 'ANALYZE_WITH_PERPLEXITY',
+        content: currentTab.url,
+        analysisType: type,
+      },
+      (response) => {
+        setIsLoading(false);
+        if (response?.result) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now(),
+              role: 'assistant',
+              content: response.result,
+              timestamp: new Date(),
+            },
+          ]);
+        }
+      }
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,43 +204,6 @@ export default function Chat() {
     );
   };
 
-  const handleAnalysisChoice = (type: 'summarize' | 'findSimilar') => {
-    setShowChoiceButtons(false);
-
-    const userMessage: Message = {
-      id: Date.now(),
-      role: 'user',
-      content:
-        type === 'summarize'
-          ? 'Please summarize this article'
-          : 'Please find similar articles',
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-
-    setIsLoading(true);
-    chrome.runtime.sendMessage(
-      {
-        type: 'ANALYZE_WITH_PERPLEXITY',
-        content: currentUrl,
-        analysisType: type,
-      },
-      (response) => {
-        setIsLoading(false);
-        if (response?.result) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now(),
-              role: 'assistant',
-              content: response.result,
-              timestamp: new Date(),
-            },
-          ]);
-        }
-      }
-    );
-  };
   return (
     <div className="flex flex-col h-[600px] w-[400px] bg-gray-50">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
