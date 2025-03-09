@@ -148,7 +148,9 @@ export default function Chat() {
     );
   };
 
-  const handleAnalysisChoice = (type: 'summarize' | 'findSimilar') => {
+  const handleAnalysisChoice = (
+    type: 'summarize' | 'findSimilar' | 'factCheck'
+  ) => {
     if (!currentTab?.url) return;
     handleAnalysisRequest(
       type,

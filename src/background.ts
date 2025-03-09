@@ -6,7 +6,10 @@ type PerplexityResponse = {
   error?: string;
 };
 
-const getPromptForType = (type: 'summarize' | 'findSimilar', url: string) => {
+const getPromptForType = (
+  type: 'summarize' | 'findSimilar' | 'factCheck',
+  url: string
+) => {
   switch (type) {
     case 'summarize':
       return `Summarize the following webpage: ${url}. Format your response with these sections:
@@ -17,6 +20,14 @@ const getPromptForType = (type: 'summarize' | 'findSimilar', url: string) => {
       return `Find and analyze similar articles to this one: ${url}. Format your response with these sections:
       ## Similar Sources Found
       - List each source with a brief description with the article name itself being clickable and opening the source on a new tab.
+      `;
+    case 'factCheck':
+      return `Analyze the following webpage: ${url}. Summarize this webpage and then search the internet for similar articles to see how truthful the original news source is. For the false information in the article, point out the false information and what the reality of the information in fact is.Format the summary with these sections:
+      ## Main Points
+      -- List the main points of the article
+
+      ## Fact-Checking  
+      -- List out if any false claims are made in the article. If so, provide the false claim and the correct information.
       `;
     default:
       throw new Error(`Invalid analysis type: ${type}`);

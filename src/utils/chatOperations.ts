@@ -31,7 +31,7 @@ export const saveChatHistory = (
 };
 
 export const handleAnalysisRequest = (
-  type: 'summarize' | 'findSimilar',
+  type: 'summarize' | 'findSimilar' | 'factCheck',
   url: string,
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
@@ -39,15 +39,29 @@ export const handleAnalysisRequest = (
 ) => {
   setShowChoiceButtons(false);
 
+  let userMessageContent: string;
+
+  switch (type) {
+    case 'summarize':
+      userMessageContent = 'Please summarize this article';
+      break;
+    case 'findSimilar':
+      userMessageContent = 'Please find similar articles';
+      break;
+    case 'factCheck':
+      userMessageContent = 'Please fact-check this article';
+      break;
+    default:
+      userMessageContent = 'Invalid analysis type';
+  }
+
   const userMessage: Message = {
     id: Date.now(),
     role: 'user',
-    content:
-      type === 'summarize'
-        ? 'Please summarize this article'
-        : 'Please find similar articles',
+    content: userMessageContent,
     timestamp: new Date(),
   };
+
   setMessages((prev) => [...prev, userMessage]);
 
   setIsLoading(true);
@@ -59,6 +73,19 @@ export const handleAnalysisRequest = (
     },
     (response) => {
       setIsLoading(false);
+      if (response?.error) {
+        console.error('Error from background script:', response.error);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            role: 'assistant',
+            content: 'There was an error processing your request.',
+            timestamp: new Date(),
+          },
+        ]);
+        return;
+      }
       if (response?.result) {
         setMessages((prev) => [
           ...prev,

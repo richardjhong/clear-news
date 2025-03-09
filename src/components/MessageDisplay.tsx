@@ -6,7 +6,7 @@ type Props = {
   isFirst: boolean;
   showChoiceButtons: boolean;
   onHistoryChoice: (continuePrevious: boolean) => void;
-  onAnalysisChoice: (type: 'summarize' | 'findSimilar') => void;
+  onAnalysisChoice: (type: 'summarize' | 'findSimilar' | 'factCheck') => void;
 };
 
 const MessageDisplay = ({
@@ -118,6 +118,13 @@ const MessageDisplay = ({
                          hover:bg-green-600 transition-colors text-sm"
               >
                 Find Similar
+              </button>
+              <button
+                onClick={() => onAnalysisChoice('factCheck')}
+                className="bg-yellow-500 text-white px-6 py-2 rounded-lg
+                         hover:bg-yellow-600 transition-colors text-sm"
+              >
+                Fact Check
               </button>
             </>
           )}

@@ -1,7 +1,7 @@
 export type MessageType = {
   type: 'ANALYZE_WITH_PERPLEXITY';
   content: string;
-  analysisType: 'summarize' | 'findSimilar';
+  analysisType: 'summarize' | 'findSimilar' | 'factCheck';
 };
 
 export type Message = {
@@ -23,4 +23,4 @@ export type CurrentTab = {
   url: string;
 };
 
-export type AnalysisTypes = 'summarize' | 'findSimilar';
+export type AnalysisTypes = 'summarize' | 'findSimilar' | 'factCheck';
