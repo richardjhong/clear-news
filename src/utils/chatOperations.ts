@@ -1,4 +1,5 @@
 import { Message, StoredChat } from '../types';
+// import { highlightFalseClaims } from './highlightClaims';
 
 export const loadChatHistory = (url: string) => {
   chrome.storage.local.get([url], (result: { [key: string]: StoredChat }) => {
@@ -87,16 +88,45 @@ export const handleAnalysisRequest = (
         return;
       }
       if (response?.result) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            role: 'assistant',
-            content: response.result,
-            timestamp: new Date(),
-          },
-        ]);
+        switch (type) {
+          case 'factCheck': {
+            const parsedResult = parseFactCheckResponse(response.result);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now(),
+                role: 'assistant',
+                content: parsedResult.summary,
+                timestamp: new Date(),
+              },
+            ]);
+            return;
+          }
+          default:
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now(),
+                role: 'assistant',
+                content: response.result,
+                timestamp: new Date(),
+              },
+            ]);
+            return;
+        }
       }
     }
   );
+};
+
+// Function to parse the fact-check response
+const parseFactCheckResponse = (result: string) => {
+  const regex = /"summary":\s*"([^"]+?)"\s*,\s*"factCheck":\s*(\[[\s\S]+?\])/;
+
+  const match = result.match(regex);
+
+  const summary = match ? match[1] : 'No summary available';
+  const factCheck = match ? match[2] : ['No fact checks available'];
+
+  return { summary, factCheck };
 };

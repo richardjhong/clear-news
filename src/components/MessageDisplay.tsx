@@ -7,6 +7,7 @@ type Props = {
   showChoiceButtons: boolean;
   onHistoryChoice: (continuePrevious: boolean) => void;
   onAnalysisChoice: (type: 'summarize' | 'findSimilar' | 'factCheck') => void;
+  falseClaims?: Array<{ claim: string; correction: string }>;
 };
 
 const MessageDisplay = ({
@@ -15,6 +16,7 @@ const MessageDisplay = ({
   showChoiceButtons,
   onHistoryChoice,
   onAnalysisChoice,
+  falseClaims,
 }: Props) => {
   return (
     <div key={message.id}>
@@ -43,35 +45,7 @@ const MessageDisplay = ({
           ${message.role === 'assistant' ? 'prose prose-sm max-w-none' : ''}
         `}
         >
-          {message.role === 'assistant' ? (
-            <Markdown
-              components={{
-                h2: ({ children }) => (
-                  <h2 className="text-lg font-bold mt-4 mb-2 text-gray-800">
-                    {children}
-                  </h2>
-                ),
-                ul: ({ children }) => (
-                  <ul className="list-disc pl-4 space-y-1 mt-2">{children}</ul>
-                ),
-                li: ({ children }) => (
-                  <li className="text-gray-700">{children}</li>
-                ),
-                p: ({ children }) => (
-                  <p className="mb-2 text-gray-700">{children}</p>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-semibold text-gray-900">
-                    {children}
-                  </strong>
-                ),
-              }}
-            >
-              {message.content}
-            </Markdown>
-          ) : (
-            message.content
-          )}
+          <Markdown>{message.content}</Markdown>
         </div>
 
         {message.role === 'user' && (
@@ -128,6 +102,25 @@ const MessageDisplay = ({
               </button>
             </>
           )}
+        </div>
+      )}
+
+      {falseClaims && falseClaims.length > 0 && (
+        <div className="mt-4">
+          <h3 className="font-bold">False Claims and Corrections:</h3>
+          {falseClaims.map((claim, index) => (
+            <div
+              key={index}
+              className="bg-yellow-100 p-2 my-2 border border-yellow-300 rounded"
+            >
+              <p>
+                <strong>False Claim:</strong> {claim.claim}
+              </p>
+              <p>
+                <strong>Correction:</strong> {claim.correction}
+              </p>
+            </div>
+          ))}
         </div>
       )}
     </div>

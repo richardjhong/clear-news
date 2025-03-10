@@ -1,5 +1,5 @@
 import type { MessageType } from './types';
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://3.12.74.88:3000';
 
 type PerplexityResponse = {
   result: string;
@@ -22,12 +22,12 @@ const getPromptForType = (
       - List each source with a brief description with the article name itself being clickable and opening the source on a new tab.
       `;
     case 'factCheck':
-      return `Analyze the following webpage: ${url}. Summarize this webpage and then search the internet for similar articles to see how truthful the original news source is. For the false information in the article, point out the false information and what the reality of the information in fact is.Format the summary with these sections:
-      ## Main Points
-      -- List the main points of the article
+      return `Analyze the following webpage: ${url}. Summarize this webpage and then search the internet for similar articles to see how truthful the original news source is. For each false claim made in the article, please enumerate the false claim and provide the correct information. Format your response to be JSON with these sections:
 
-      ## Fact-Checking  
-      -- List out if any false claims are made in the article. If so, provide the false claim and the correct information.
+      {
+        summary: [insert summary here],
+        factCheck: [enumerate each false claim with the false claim itself and the reality check correction]
+      }
       `;
     default:
       throw new Error(`Invalid analysis type: ${type}`);
