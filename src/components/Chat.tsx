@@ -89,7 +89,10 @@ export default function Chat() {
         {
           id: Date.now(),
           role: 'assistant',
-          content: `I notice you're on: ${title}\nWould you like me to analyze this page?`,
+          content: `I notice you're on: <strong>${title}</strong>
+          \n
+          Would you like me to analyze this page?
+          `,
           timestamp: new Date(),
         },
       ]);

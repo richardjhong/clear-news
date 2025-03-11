@@ -91,12 +91,30 @@ export const handleAnalysisRequest = (
         switch (type) {
           case 'factCheck': {
             const parsedResult = parseFactCheckResponse(response.result);
+
+            const msgToSend = `## Summary of the Article\n\n**Summary:** ${
+              parsedResult.summary
+            } ${
+              parsedResult.factCheck.length !== 0
+                ? `\n\n**False Claims**\n\n${parsedResult.factCheck
+                    .map(
+                      (claim, index) =>
+                        `${index + 1}. **Claim:** ${
+                          claim.falseClaim
+                        }\n   **Reality Check:** ${claim.realityCheck}\n\n---`
+                    )
+                    .join('\n')}`
+                : ''
+            }`;
+
+            console.log(`let's first preview the parsedResult: `, parsedResult);
+            console.log(`let's preview the message: `, msgToSend);
             setMessages((prev) => [
               ...prev,
               {
                 id: Date.now(),
                 role: 'assistant',
-                content: parsedResult.summary,
+                content: msgToSend,
                 timestamp: new Date(),
               },
             ]);
@@ -119,14 +137,22 @@ export const handleAnalysisRequest = (
   );
 };
 
-// Function to parse the fact-check response
 const parseFactCheckResponse = (result: string) => {
   const regex = /"summary":\s*"([^"]+?)"\s*,\s*"factCheck":\s*(\[[\s\S]+?\])/;
 
   const match = result.match(regex);
 
   const summary = match ? match[1] : 'No summary available';
-  const factCheck = match ? match[2] : ['No fact checks available'];
+
+  let factCheck: Array<{ falseClaim: string; realityCheck: string }> = [];
+  if (match && match[2]) {
+    try {
+      factCheck = JSON.parse(match[2]);
+    } catch (error) {
+      console.error('Error parsing factCheck:', error);
+      factCheck = [];
+    }
+  }
 
   return { summary, factCheck };
 };
