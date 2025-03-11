@@ -92,23 +92,21 @@ export const handleAnalysisRequest = (
           case 'factCheck': {
             const parsedResult = parseFactCheckResponse(response.result);
 
-            const msgToSend = `## Summary of the Article\n\n**Summary:** ${
-              parsedResult.summary
-            } ${
-              parsedResult.factCheck.length !== 0
-                ? `\n\n**False Claims**\n\n${parsedResult.factCheck
-                    .map(
-                      (claim, index) =>
-                        `${index + 1}. **Claim:** ${
-                          claim.falseClaim
-                        }\n   **Reality Check:** ${claim.realityCheck}\n\n---`
-                    )
-                    .join('\n')}`
-                : ''
-            }`;
+            let msgToSend = `## Summary of the Article\n\n**Summary:** ${parsedResult.summary}`;
 
-            console.log(`let's first preview the parsedResult: `, parsedResult);
-            console.log(`let's preview the message: `, msgToSend);
+            if (parsedResult.factCheck.length !== 0) {
+              msgToSend += `\n\n**False Claims**\n\n${parsedResult.factCheck
+                .map((claim, index) => {
+                  const claimText = `${index + 1}. **Claim:** ${
+                    claim.falseClaim
+                  }**Reality Check:** ${claim.realityCheck}`;
+                  return index < parsedResult.factCheck.length - 1
+                    ? `${claimText}\n\n`
+                    : claimText;
+                })
+                .join('')}`;
+            }
+
             setMessages((prev) => [
               ...prev,
               {
@@ -138,7 +136,8 @@ export const handleAnalysisRequest = (
 };
 
 const parseFactCheckResponse = (result: string) => {
-  const regex = /"summary":\s*"([^"]+?)"\s*,\s*"factCheck":\s*(\[[\s\S]+?\])/;
+  const regex =
+    /"summary":\s*"([^"]+?)"\s*,\s*"factCheck":\s*(\[\s*\{(?:[^{}]*|\{[^{}]*\})*\}\s*(?:,\s*\{(?:[^{}]*|\{[^{}]*\})*\})*\s*\])/;
 
   const match = result.match(regex);
 

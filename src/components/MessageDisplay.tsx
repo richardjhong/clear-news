@@ -7,7 +7,6 @@ type Props = {
   showChoiceButtons: boolean;
   onHistoryChoice: (continuePrevious: boolean) => void;
   onAnalysisChoice: (type: 'summarize' | 'findSimilar' | 'factCheck') => void;
-  falseClaims?: Array<{ falseClaim: string; realityCheck: string }>;
 };
 
 const MessageDisplay = ({
@@ -16,7 +15,6 @@ const MessageDisplay = ({
   showChoiceButtons,
   onHistoryChoice,
   onAnalysisChoice,
-  falseClaims,
 }: Props) => {
   return (
     <div key={message.id}>
@@ -135,25 +133,6 @@ const MessageDisplay = ({
               </button>
             </>
           )}
-        </div>
-      )}
-
-      {falseClaims && falseClaims.length > 0 && (
-        <div className="mt-4">
-          <h3 className="font-bold">False Claims and Corrections:</h3>
-          {falseClaims.map((claim, index) => (
-            <div
-              key={index}
-              className="bg-yellow-100 p-2 my-2 border border-yellow-300 rounded"
-            >
-              <p>
-                <strong>False Claim:</strong> {claim.falseClaim}
-              </p>
-              <p>
-                <strong>Correction:</strong> {claim.realityCheck}
-              </p>
-            </div>
-          ))}
         </div>
       )}
     </div>

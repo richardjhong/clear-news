@@ -127,28 +127,6 @@ export default function Chat() {
     setMessages((prev) => [...prev, userMessage]);
     setInputText('');
     setIsLoading(true);
-
-    chrome.runtime.sendMessage(
-      {
-        type: 'ANALYZE_WITH_PERPLEXITY',
-        content: userMessage.content,
-        analysisType: 'summarize',
-      },
-      (response) => {
-        setIsLoading(false);
-        if (response?.result) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now(),
-              role: 'assistant',
-              content: response.result,
-              timestamp: new Date(),
-            },
-          ]);
-        }
-      }
-    );
   };
 
   const handleAnalysisChoice = (
