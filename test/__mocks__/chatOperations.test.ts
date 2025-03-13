@@ -1,4 +1,8 @@
-import { loadChatHistory, saveChatHistory } from '@/utils/chatOperations';
+import {
+  loadChatHistory,
+  saveChatHistory,
+  handleAnalysisRequest,
+} from '@/utils/chatOperations';
 import { StoredChat, Message } from '@/types';
 
 const staticTimeStamp = new Date();
@@ -25,6 +29,9 @@ beforeEach(() => {
         }),
         set: jest.fn(),
       },
+    },
+    runtime: {
+      sendMessage: jest.fn(),
     },
   } as unknown as typeof chrome;
 });
@@ -91,5 +98,88 @@ describe('saveChatHistory', () => {
         showChoiceButtons,
       },
     });
+  });
+});
+
+describe('handleAnalysisRequest', () => {
+  const setMessages = jest.fn();
+  const setIsLoading = jest.fn();
+  const setShowChoiceButtons = jest.fn();
+
+  it('should handle summarize request successfully', () => {
+    const url = 'http://example.com';
+    const type = 'summarize';
+
+    (chrome.runtime.sendMessage as jest.Mock).mockImplementationOnce(
+      (message, callback) => {
+        callback({ result: 'Summary of the article' });
+      }
+    );
+
+    handleAnalysisRequest(
+      type,
+      url,
+      setMessages,
+      setIsLoading,
+      setShowChoiceButtons
+    );
+
+    expect(setShowChoiceButtons).toHaveBeenCalledWith(false);
+    expect(setMessages).toHaveBeenCalledWith(expect.any(Function));
+    expect(setIsLoading).toHaveBeenCalledWith(true);
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      {
+        type: 'ANALYZE_WITH_PERPLEXITY',
+        content: url,
+        analysisType: type,
+      },
+      expect.any(Function)
+    );
+  });
+
+  it('should handle factCheck request with error', () => {
+    const url = 'http://example.com';
+    const type = 'factCheck';
+
+    (chrome.runtime.sendMessage as jest.Mock).mockImplementationOnce(
+      (message, callback) => {
+        callback({ error: 'Error message' });
+      }
+    );
+
+    handleAnalysisRequest(
+      type,
+      url,
+      setMessages,
+      setIsLoading,
+      setShowChoiceButtons
+    );
+
+    expect(setIsLoading).toHaveBeenCalledWith(false);
+    expect(setMessages).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it('should handle factCheck request successfully', () => {
+    const url = 'http://example.com';
+    const type = 'factCheck';
+
+    (chrome.runtime.sendMessage as jest.Mock).mockImplementationOnce(
+      (message, callback) => {
+        callback({
+          result: '{"summary": "This is a summary", "factCheck": []}',
+        });
+      }
+    );
+
+    handleAnalysisRequest(
+      type,
+      url,
+      setMessages,
+      setIsLoading,
+      setShowChoiceButtons
+    );
+
+    expect(setIsLoading).toHaveBeenCalledWith(false);
+    expect(setMessages).toHaveBeenCalledWith(expect.any(Function));
   });
 });
