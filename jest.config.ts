@@ -12,6 +12,9 @@ const config: Config = {
     ],
   },
   setupFilesAfterEnv: ['./test/jest.setup.ts'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
 };
 
 export default config;

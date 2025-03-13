@@ -1,15 +1,19 @@
 import { Message, StoredChat } from '../types';
 // import { highlightFalseClaims } from './highlightClaims';
 
-export const loadChatHistory = (url: string) => {
-  chrome.storage.local.get([url], (result: { [key: string]: StoredChat }) => {
-    if (result[url]?.messages?.length > 0) {
-      return result[url].messages.map((msg) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      }));
-    }
-    return null;
+export const loadChatHistory = (url: string): Promise<Message[] | null> => {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([url], (result: { [key: string]: StoredChat }) => {
+      if (result[url]?.messages?.length > 0) {
+        const messages = result[url].messages.map((msg) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        resolve(messages);
+      } else {
+        resolve(null);
+      }
+    });
   });
 };
 

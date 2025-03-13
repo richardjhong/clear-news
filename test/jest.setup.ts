@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-(global as any).chrome = {
+global.chrome = {
   storage: {
     local: {
       get: jest.fn((keys, callback) => callback({ myKey: 'mockedValue' })),
