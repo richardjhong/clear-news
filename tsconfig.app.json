@@ -29,5 +29,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "test"]
+  "include": ["src"],
+  "exclude": ["test", "**/*.test.ts", "**/*.test.tsx"]
 }

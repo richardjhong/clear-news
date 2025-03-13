@@ -27,7 +27,8 @@
       "chrome"
     ]
   },
-  "include": ["src", "test"],
+  "include": ["src/**/*", "test/**/*"],
+  "exclude": ["node_modules"],
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
